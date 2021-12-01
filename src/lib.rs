@@ -1,10 +1,2 @@
-mod i2c;
-mod window;
-
-#[cfg(test)]
-mod tests {
-    #[test]
-    fn it_works() {
-        assert_eq!(2 + 2, 4);
-    }
-}
+pub mod i2c;
+pub mod window;
