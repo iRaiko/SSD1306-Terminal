@@ -1,26 +1,26 @@
 use std::fs::{File, OpenOptions};
 use std::os::raw::{c_int, c_ulong, c_void};
 use std::os::unix::io::{RawFd, AsRawFd};
-use std::io::Result;
+use std::io::{Result, Write};
 
 /// I2C struct with basic functions and initialization for the ssd1306 screen
 pub struct I2c
 {
     file: File,
-    slave_adress: u8,
+    slave_adress: i32,
 }
 
 impl I2c
 {
     /// Create a new I2C instance from the dev file and slave adress
-    pub fn new(file: &str, slave_adress: u8) -> Result<I2c>
+    pub fn new(file_name: &str, slave_adress: i32) -> Result<I2c>
     {
-        let file = OpenOptions::new().write(true).read(true).open(&file)?;
+        let file = OpenOptions::new().write(true).read(true).open(&file_name)?;
 
         // Linux needs a raw FD for ioctl call
         let rawfd = file.as_raw_fd();
 
-        if unsafe { ioctl(rawfd, 0x0703, slave_adress as *mut c_void) } < 0
+        if  unsafe { ioctl(rawfd, 0x0703, slave_adress as *mut c_void)} < 0
         {
             return Err(std::io::Error::new(std::io::ErrorKind::Other, "Error setting the file as i2c file"))
         }
@@ -45,7 +45,7 @@ impl I2c
     /// Write to the device file
     fn write(&mut self, data: &[u8]) -> Result<usize>
     {
-        self.write(data)
+        self.file.write(&data)
     }
 }
 
