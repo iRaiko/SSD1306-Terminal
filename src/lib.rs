@@ -1,3 +1,6 @@
+mod i2c;
+mod window;
+
 #[cfg(test)]
 mod tests {
     #[test]
