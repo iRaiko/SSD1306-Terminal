@@ -14,13 +14,13 @@ pub struct Window
 impl Window
 {
     /// Create a new Window and initialise the oled_screen;
-    pub fn new(i2c_file_location: &str, slave_adress: u8) -> Result<Window>
+    pub fn new(i2c_file_location: &str, slave_adress: i32) -> Result<Window>
     {
         let buffer = vec![0u8; ROWS_ON_SCREEN * BYTES_PER_ROW];
         let write_buffer = vec![0u8; BYTES_PER_ROW];
         let cursor_x = 0;
         let cursor_y = 0;
-        let mut screen = I2c::new(i2c_file_location, slave_adress)?;
+        let screen = I2c::new(i2c_file_location, slave_adress)?;
         let mut window = Window { buffer, write_buffer, cursor_x, cursor_y, screen};
         window.init_oled()?;
         Ok(window)
@@ -30,7 +30,7 @@ impl Window
     pub fn awaken(&mut self) -> Result<usize>
     {
         self.screen.write_command(0xAF)?;
-        std::thread::sleep(std::time::Duration::new(0, 100000000));
+        std::thread::sleep(std::time::Duration::new(0, 100000000)); // Time for screen to turn on
         Ok(0)
     }
 
@@ -38,14 +38,13 @@ impl Window
     pub fn sleep(&mut self)-> Result<usize>
     {
         self.screen.write_command(0xAE)?;
-        std::thread::sleep(std::time::Duration::new(0, 100000000));
+        std::thread::sleep(std::time::Duration::new(0, 100000000)); // Time for screen to turn off
         Ok(0)
     }
 
-    /// Print to the buffer
+    /// Print a string to the buffer area of the screen
     pub fn print_to_buffer(&mut self, content: &str) -> Result<usize>
     {
-        let characters = content.chars();
         let mut to_add = vec![0u8; BYTES_PER_ROW * ((content.len() / 16) + 1)];
         for (index, char) in content.chars().enumerate()
         {
@@ -59,7 +58,7 @@ impl Window
         self.draw()
     }
 
-    /// Print the write buffer to the buffer.
+    /// Print the write buffer to the buffer area on the screen
     pub fn print_write_buffer(&mut self) -> Result<usize>
     {
         self.buffer.extend_from_slice(&self.write_buffer);
@@ -82,14 +81,43 @@ impl Window
         self.draw()
     }
 
-    fn increase_write_size(&mut self) -> Result<usize>
+    /// Remove a character from the write buffer
+    pub fn remove_char(&mut self) -> Result<usize>
     {
-        self.write_buffer.extend_from_slice(&[0u8; 128]);
-        self.cursor_y += 1;
+        self.decrement_cursor();
+        for bit in 0..8
+        {
+            self.write_buffer[(self.cursor_y * 128) + (self.cursor_x * 8) + bit] = 0;
+        }
 
         self.draw()
     }
 
+    /// Increases the size of the writing area to make room for the new characters
+    fn increase_write_size(&mut self) -> Result<usize>
+    {
+        if (self.cursor_y * 128) + (self.cursor_x * 8) + 1 > 128
+        {
+            self.write_buffer.extend_from_slice(&[0u8; 128]);
+        }
+        self.cursor_y += 1;
+        self.draw()
+    }
+
+    fn decrease_write_size(&mut self)
+    {
+        if self.cursor_y == 0
+        {
+            self.cursor_x = 0;
+        }
+        else 
+        {
+            self.cursor_y -= 1;
+        }
+
+    }
+
+    /// Moves the cursor one position to the right, and resets to 0 after reaching the right side of the screen
     fn increment_cursor(&mut self)
     {
         self.cursor_x += 1;
@@ -97,6 +125,19 @@ impl Window
         {
             self.cursor_x = 0;
             self.increase_write_size();
+        }
+    }
+
+    fn decrement_cursor(&mut self)
+    {
+        if self.cursor_x == 0
+        {
+            self.cursor_x = 15;
+            self.decrease_write_size();
+        }
+        else 
+        {
+            self.cursor_x -= 1;
         }
     }
 
@@ -164,24 +205,24 @@ impl Window
         self.screen.write_command(0xD3)?; // Display offset
         self.screen.write_command(0x00)?; // Display offset value
 
-        self.screen.write_command(0xD5)?; //
-        self.screen.write_command(0x80)?;
+        self.screen.write_command(0xD5)?; // Set display clock
+        self.screen.write_command(0x80)?; // display clock value
 
-        self.screen.write_command(0xD9)?;
-        self.screen.write_command(0xF1)?;
+        self.screen.write_command(0xD9)?; // Set pre-charge period
+        self.screen.write_command(0xF1)?; // pre-charge period value
 
-        self.screen.write_command(0xDA)?;
-        self.screen.write_command(0x12)?;
+        self.screen.write_command(0xDA)?; // Set COM pins
+        self.screen.write_command(0x12)?; // Com pins value
 
-        self.screen.write_command(0xDB)?;
-        self.screen.write_command(0x40)?;
+        self.screen.write_command(0xDB)?; // Set VCOMH Deselect level
+        self.screen.write_command(0x40)?; // level
 
         self.screen.write_command(0x8D)?;
         self.screen.write_command(0x14)?;
 
         self.screen.write_command(0xAF)?;
 
-        self.screen.write_command(0x20)?;
+        self.screen.write_command(0x20)?; //
         self.screen.write_command(0x00)
     }
 
