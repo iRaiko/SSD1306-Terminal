@@ -96,10 +96,7 @@ impl Window
     /// Increases the size of the writing area to make room for the new characters
     fn increase_write_size(&mut self) -> Result<usize>
     {
-        if (self.cursor_y * 128) + (self.cursor_x * 8) + 1 > 128
-        {
-            self.write_buffer.extend_from_slice(&[0u8; 128]);
-        }
+        self.write_buffer.extend_from_slice(&[0u8; BYTES_PER_ROW]);
         self.cursor_y += 1;
         self.draw()
     }
