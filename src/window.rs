@@ -94,14 +94,14 @@ impl Window
     }
 
     /// Increases the size of the writing area to make room for the new characters
-    fn increase_write_size(&mut self) -> Result<usize>
+    fn increase_size_of_write_area(&mut self) -> Result<usize>
     {
         self.write_buffer.extend_from_slice(&[0u8; BYTES_PER_ROW]);
         self.cursor_y += 1;
         self.draw()
     }
 
-    fn decrease_write_size(&mut self)
+    fn decrease_size_of_write_area(&mut self)
     {
         if self.cursor_y == 0
         {
@@ -121,7 +121,7 @@ impl Window
         if self.cursor_x > 15
         {
             self.cursor_x = 0;
-            self.increase_write_size();
+            self.increase_size_of_write_area();
         }
     }
 
@@ -130,7 +130,7 @@ impl Window
         if self.cursor_x == 0
         {
             self.cursor_x = 15;
-            self.decrease_write_size();
+            self.decrease_size_of_write_area();
         }
         else 
         {
@@ -144,14 +144,20 @@ impl Window
         self.screen.write_data(&data);
     }
 
+    pub fn clear_screen(&mut self)
+    {
+        self.buffer = vec![0u8; ROWS_ON_SCREEN * BYTES_PER_ROW];
+        self.draw();
+    }
+
     /// Draw the complete buffers to the screen
     pub fn draw(&mut self) -> Result<usize>
     {
         let mut pixels = Vec::new();
         
-        let write_size = self.write_buffer.len() / BYTES_PER_ROW;
+        let size_of_write_area = self.write_buffer.len() / BYTES_PER_ROW;
         let buffer_total_rows = self.buffer.len() / BYTES_PER_ROW;
-        let buffer_rows_in_view = ROWS_ON_SCREEN - write_size;
+        let buffer_rows_in_view = ROWS_ON_SCREEN - size_of_write_area;
         let buffer_start = buffer_total_rows - buffer_rows_in_view;
 
         let buffer_window = &self.buffer[buffer_start * BYTES_PER_ROW..];
@@ -165,7 +171,7 @@ impl Window
         {
             for bit in 0..8
             {
-                pixels[((7 - write_size) * 128) + (x * 8) + bit] |= 0x80;
+                pixels[((7 - size_of_write_area) * 128) + (x * 8) + bit] |= 0x80;
             }
         }
 
